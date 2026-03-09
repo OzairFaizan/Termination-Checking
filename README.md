@@ -30,3 +30,20 @@
     - Decreasing argument.
     - Decreasing `this`
 
+# Week 2026-03-03
+## Features:
+- Can track same sizes for `l @ ...` and `val x = ...`.
+- Checks for synthetic `unapply` only when matched over term. Only a warning is
+  given when not synthetic however sub-terms are not considered.
+- Lexicographic order is used to compare arguments of recursive calls with
+  parameters.
+- Checks if type can decrease (is well-founded) only when needed:
+  If it's the type first argument that decreases and all previous arguments are
+  non-increasing
+- More meaningful error messages.
+## Bug fixes:
+- `canTypeDecrease` was not sound, we also need to check:
+    - The base cases do not have any self references.
+    - There exists a base case (case object), so the parameter should have a
+      type which is a sealed trait (or enum).
+
