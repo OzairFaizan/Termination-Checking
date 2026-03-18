@@ -47,3 +47,17 @@
     - There exists a base case (case object), so the parameter should have a
       type which is a sealed trait (or enum).
 
+# Week 2026-03-10
+- Remove base case checks: everything must be case classes/objects!
+- Remove `l.tail` too...
+- Mutual recursion, for every call to a function not in the call stack:
+    - Add `called_param -> (arg, Same)` to compare map.
+    - Add called method symbol to call stack.
+    - Traverse the called function and undo the above afterward.
+  If the function is in the call stack:
+    - Compare its arguments with the saved parameters lexicographically.
+- `-Yretain-trees` is required for "general" mutual recursion.
+- Read "The Size-Change Principle for Program Termination" which is a generalization of the above.
+    - The strengths: Very general, works even when arguments are swapped or not used.
+    - The Weaknesses: Computationally inefficient PSPACE-Complete.
+
