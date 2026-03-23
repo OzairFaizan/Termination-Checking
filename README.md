@@ -30,7 +30,7 @@
     - Decreasing argument.
     - Decreasing `this`
 
-# Week 2026-03-03
+# Week 03 2026-03-03
 ## Features:
 - Can track same sizes for `l @ ...` and `val x = ...`.
 - Checks for synthetic `unapply` only when matched over term. Only a warning is
@@ -47,7 +47,7 @@
     - There exists a base case (case object), so the parameter should have a
       type which is a sealed trait (or enum).
 
-# Week 2026-03-10
+# Week 04 2026-03-10
 - Remove base case checks: everything must be case classes/objects!
 - Remove `l.tail` too...
 - Mutual recursion, for every call to a function not in the call stack:
@@ -60,4 +60,10 @@
 - Read "The Size-Change Principle for Program Termination" which is a generalization of the above.
     - The strengths: Very general, works even when arguments are swapped or not used.
     - The Weaknesses: Computationally inefficient PSPACE-Complete.
+
+# Week 05 2026-03-19
+- Added `@decreasesBy()` on output type which allows user to give an order in which lexicographical
+  order should be checked.
+- Added `assumeTerminates(body)` function, which wraps a body the user marks as terminating and
+  therefore not checked.
 
