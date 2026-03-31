@@ -79,5 +79,23 @@
     - Note we cannot prove termination for `foldRight` alone as `op` is not generally known, however
       whenever it is known we can proof its termination alongside the functions where it is called.
 
-# Week 06.5 2026-04-07
+# Week 07 2026-03-31
+
+# Easter Break 2026-04-07
+
+# Week 08 2026-04-14
+
+# Week 09 2026-04-21
+
+# Week 10 2026-04-28
+
+# Week 11 2026-05-05
+
+# Week 12 2026-05-12
+
+# Week 13 2026-05-19
+
+# Week 14 2026-05-28
+
+# Week 15 2026-06-05
 
