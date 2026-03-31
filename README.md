@@ -67,3 +67,17 @@
 - Added `assumeTerminates(body)` function, which wraps a body the user marks as terminating and
   therefore not checked.
 
+# Week 06 2026-03-24
+- Added `@assumeTerminates` annotation.
+- Added a whitelist of functions (might be removed in favor of the annotation).
+- Curried functions partially supported (some bugs when >2 arguments).
+- Functions passed as arguments are now checked.
+- The explanation for the `addAll`:
+    - Keep the `op` function tree when defined in `addAll`.
+    - The problem reduces to mutual recursion termination checking: `addAll` calls `foldRight` and 
+      `foldRight` calls `addAll` through `op`.
+    - Note we cannot prove termination for `foldRight` alone as `op` is not generally known, however
+      whenever it is known we can proof its termination alongside the functions where it is called.
+
+# Week 06.5 2026-04-07
+
