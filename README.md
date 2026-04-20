@@ -80,10 +80,19 @@
       whenever it is known we can proof its termination alongside the functions where it is called.
 
 # Week 07 2026-03-31
+- Add `@assumeTerminates` to standard library functions that terminate but don't have a body.
+- Curried functions should have all their arguments to work properly.
+  It also works if all but the last argument is given then the last one is given, but this is just by "accident".
+  For complete generality we need to keep track of partial argument lists which is doable but not
+  worth the pain for the use case.
 
 # Easter Break 2026-04-07
 
 # Week 08 2026-04-14
+- Assume well-founded on types, for instance on `List` this allows us to match over `head :: tail` and consider both `head` and `tail` as sub-terms.
+- Make selectors work for instance `l.tail` should be less than `l: List`.
+  The selected term should either have `assumeDecreases` or be an immutable parameter of the case class.
+- Assume decreases annotation on methods for instance `head` and `tail` of `List`.
 
 # Week 09 2026-04-21
 
