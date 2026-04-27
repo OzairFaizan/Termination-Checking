@@ -95,8 +95,22 @@
 - Assume decreases annotation on methods for instance `head` and `tail` of `List`.
 
 # Week 09 2026-04-21
+- Fixed select failing test.
+- While loops are doable:
+  - One function that takes a tree, and a boolean (whether to check or not).
+      - The function matches on the tree with the cases:
+          - If      recurse on both branches fold results.
+          - Match   recurse on all branches fold results.
+          - WhileDo recurse on body fold result with all Size.Same
+          - Assign  update the `sizeMap`.
+          - Others  recurse on children. 
+        The "fold results" means that for each variable we output one Size, indicating whether it
+        decreased across all branches.
 
 # Week 10 2026-04-28
+- While loops implementation.
+- Optimize by keeping a set of checked functions.
+- Start Report and Documentation.
 
 # Week 11 2026-05-05
 
