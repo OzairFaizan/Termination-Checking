@@ -108,11 +108,16 @@
         decreased across all branches.
 
 # Week 10 2026-04-28
-- While loops implementation.
+- Put annotation on List tail and head, instead of Iterable.
 - Optimize by keeping a set of checked functions.
-- Start Report and Documentation.
+- While loops implementation (requires two traversals).
+## Bug fix:
+- When we do `l.foo(...)`, for `l: List[...]` we need to find all the possible methods `foo` can
+  take and check them for termination.
+  Empty trees are often due to this issue, but correctness is a bigger concern.
 
 # Week 11 2026-05-05
+- Start Report and Documentation.
 
 # Week 12 2026-05-12
 
