@@ -117,6 +117,9 @@
   Empty trees are often due to this issue, but correctness is a bigger concern.
 
 # Week 11 2026-05-05
+- Add annotation, on `throw` rather than explicit check (reverted due to failing tests.)
+- Run benchmarks.
+- Ask LLM for code review.
 - Start Report and Documentation.
 
 # Week 12 2026-05-12
