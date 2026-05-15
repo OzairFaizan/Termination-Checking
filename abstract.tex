@@ -1,10 +1,11 @@
 \begin{abstract}
-The problem of determining whether a program will finish executing is,
+
+Determining whether a program will finish executing is,
 in general, undecidable. Nevertheless, ensuring termination is crucial for
 safety-critical systems, and the foundations of proof assistants.
 
 This report presents the design and implementation of an opt-in termination
-checker for the Scala 3 compiler, implemented as a MiniPhase.
+checker for the Scala 3 compiler, implemented as a \texttt{MiniPhase}.
 Methods annotated with \texttt{@terminates} are verified to be terminating by 
 leveraging structural decrease analysis of Algebraic Data Types (ADTs).
 
@@ -15,11 +16,5 @@ well-foundedness of ADTs.
 If no errors were raised, the annotated method is guaranteed to terminate under
 the assumptions made by any escape hatches.
 
-
-
-% The abstract serves as an executive summary of your project.
-% Your abstract should cover at least the following topics, 1-2 sentences for
-% each: what area you are in, the problem you focus on, why existing work is
-% insufficient, what the high-level intuition of your work is, maybe a neat
-% design or implementation decision, and key results of your evaluation.
 \end{abstract}
+

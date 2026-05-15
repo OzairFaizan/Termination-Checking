@@ -1,47 +1,63 @@
 \chapter{Background and Related Work}
 
 \section{Termination Analysis Techniques}
-\begin{itemize}
-    \item Size-change principle
-    \item Lexicographic ordering
-    \item Well-founded relations
-    \item User provided proofs
-\end{itemize}
+
+The theory of termination analysis relies on the notion of well-founded
+relations. A relation is well-founded if it contains no infinite descending
+chains. If every recursive call can be shown to pass arguments that are strictly
+smaller than the parameters for some well-founded relation, the function
+terminates.
+The following techniques, commonly used in existing tools, extend this idea.
+
+\subsection{Lexicographic Ordering}
+In functions with multiple arguments, we can construct a well-founded relation
+for the tuple of arguments from well-founded relations on each argument. 
+If the first evaluated argument is strictly smaller, the lexicographic decrease
+is satisfied, and the recursive call is considered safe, provided the argument's
+type is well-founded. If the argument is equal in size, the analysis proceeds to
+the next argument in the tuple. If the size is unknown or larger, the
+lexicographic check fails and termination cannot be guaranteed.
+
+\subsection{Size-Change Principle}
+The size-change principle \cite{SizeChange} is a global termination analysis
+techniques that models how the size of values change at each function call.
+A program terminates if every infinite call sequence would require an infinite
+sequence of strictly decreasing values, which for well-founded data is
+impossible. The algorithm computes the transitive closure of each function
+call's \emph{size-change graphs}. Although quite effective, it is
+computationally expensive as it has been shown to be \textsf{PSPACE-HARD}.
+
+\subsection{User-Provided Proofs}
+When automatic analysis fails, systems fall back on human intervention. In proof
+assistant environment, these are mathematical proofs. In the context of this
+work, this technique takes the form of escape hatches.
 
 \section{Existing Tools}
-\begin{itemize}
-    \item Rocq, Agda, Lean
-    \item AProVE
-    \item Stainless
-\end{itemize}
+The challenge of verifying program termination has led to the development of
+various tools, ranging from proof assistants to automated analyzers.
 
-% The background section introduces the necessary background to understand your
-% work. This is not necessarily related work but technologies and dependencies
-% that must be resolved to understand your design and implementation.
+\subsection{Rocq, Agda, and Lean}
+These are state-of-the-art interactive proof assistants based on dependent type
+theory. They enforce termination for all functions by default.
+Rocq uses a syntactic guard condition for fixpoints, Agda and Lean employ a more
+sophisticated termination checker based on the above techniques.
+They all fall back on manually provided proofs, which is often too
+labor-intensive for general-purpose software engineering.
 
-% This section is usually 3-5 pages.
+\subsection{AProVE}
+AProVE \cite{AProVE} is an automated system for proving termination for
+general-purpose languages such as Java, C, and Haskell. It has achieved
+state-of-the-art results in the Termination Competition
+\footnote{\url{https://termination-portal.org/wiki/Termination_Competition_2025}}.
+However, it does not operate on the source program but relies on rewriting of
+the program.
 
+\subsection{Stainless}
+Stainless \cite{DBLP:journals/corr/abs-1904-03482} is a verification framework
+specifically designed for Scala. It translates Scala code into logical
+statements, verified by an underlying SMT solver. Stainless can automatically
+prove intricate mathematical bounds on integers, infer well-founded relations to
+use, and has semantic awareness of values. However, Stainless operates as a
+separate toolchain, requires external dependencies and adds significant
+verification time.
 
-% The related work section covers closely related work. Here you can highlight
-% the related work \cite{DBLP:conf/fmcad/KuncakH21, DBLP:conf/pldi/GveroKKP13},
-% how it solved a problem, and why it solved a different
-% problem \cite{DBLP:conf/nsdi/YabandehKKK09}. Do not repeat at length the content
-% of related work, but rather focus
-% on how it compares the present work: by enabling it, by exploring a slightly
-% different approach \cite{DBLP:conf/cav/PiskacK08}, or by being subsumed by the
-% current work.
-% Do not play down the importance of related work. Say what is different and how
-% you overcome some of the weaknesses of related work by discussing the 
-% trade-offs. Stay positive and factual: do not use subjective assessment, but
-% point out real differences.
-
-
-
-% This section is usually 3-5 pages.
-
-% Please use bibtex to enter publications. To find a reference, use "DBLP
-% PaperTitle" in a search engine and then use the bib file provided by bibtex.
-
-% Feel free to use wikipedia to find related references, but do not cite wikipedia
-% pages themselves. Consult those pages and your advisors to find the original
-% sources and suggestions for background material.

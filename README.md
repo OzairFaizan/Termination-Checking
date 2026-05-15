@@ -123,6 +123,9 @@
 - Start Report and Documentation.
 
 # Week 12 2026-05-12
+- Try fixing the `throw` annotation error. Stack trace shows that we call
+  `SourcefileLoader.doComplete` however `throw` does not have a source file...
+- Report writing.
 
 # Week 13 2026-05-19
 
