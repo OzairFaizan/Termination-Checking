@@ -1,0 +1,50 @@
+%%%%%%%%%%%%%%%%
+\chapter{Design and Approach}
+%%%%%%%%%%%%%%%%
+\begin{itemize}
+    \item Conservative: rejects programs that may terminate, but rejects all
+    non-terminating ones.
+    \item Opt-in.
+    \item Escape hatches, their risks and reasoning behind them.
+    \item Description of annotations and reasoning behind them.
+    \item No external tools.
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Implementation}
+%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{itemize}
+    \item MiniPhase.
+    \item What does ``Smaller'' mean?
+    \item Size maps \texttt{valMap} and \texttt{varMap}.
+    \item Call stack.
+    \item \texttt{typeWellFounded}.
+    \item \texttt{areSmaller} lexicographic check.
+    \item \texttt{methodOverrides}.
+    \item while loop checks and \texttt{varMap} updates.
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%
+\chapter{Evaluation}
+%%%%%%%%%%%%%%%%%%%%
+\begin{itemize}
+    \item Examples of when it works, and how.
+    \item Performance and metrics.
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%
+\chapter{Correctness and Limitations}
+%%%%%%%%%%%%%%%%%%%%
+\begin{itemize}
+    \item Short correctness sketch, for recursion, mutual recursion, while
+    loops, and, higher-order-function.
+    \item Examples of when it doesn't work, and why.
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%
+\chapter{Discussion}
+%%%%%%%%%%%%%%%%%%%%

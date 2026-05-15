@@ -1,0 +1,77 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% For an example of a finished thesis (not using this template, but good in terms of content), see:
+% https://infoscience.epfl.ch/server/api/core/bitstreams/4c364743-4eb1-4e55-9422-6cb6f5d8f38d/content
+%
+% Derived work from 
+% https://www.overleaf.com/latex/templates/epfl-template-for-theses-and-projects/snkgdhbcrscn
+%
+% through modifications by Viktor Kuncak
+%
+% Goal: provide formatting for theses and project reports
+%
+%  
+% the work from which it was derived had this notice:
+%
+% Author: Mathias Payer <mathias.payer@epfl.ch>
+%
+% This work may be distributed and/or modified under the
+% conditions of the LaTeX Project Public License, either version 1.3
+% of this license or (at your option) any later version.
+% The latest version of this license is in
+%   http://www.latex-project.org/lppl.txt
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[a4paper,11pt,oneside]{report}
+% Options: MScThesis, BScThesis, MScProject, BScProject
+\usepackage[MScProject]{EPFLreport}
+\usepackage{xspace}
+\usepackage{tgpagella}
+
+\title{Termination Checking in Scala}
+\author{Ozair Faizan}
+
+\newcommand{\sysname}{LogicCompiler\xspace}
+
+\renewcommand{\committee}{ % shown on front page
+\large
+Thesis Advisor:\\
+Viktor Kun\v{c}ak   % change if not in LARA
+\\[1\baselineskip]
+
+% Company Advisor: \\ % for thesis in industry
+% Thomas Edison \\[1\baselineskip] % change as needed, see next as well
+
+% External Reviewer: \\  % for thesis at EPFL
+% Nikola Tesla \\[1\baselineskip] % change as needed, see previous as well
+
+PhD Student Supervisor: \\ 
+Matthieu Bovel \\[1\baselineskip] % PhD student who helped in day to day supervision
+} % end of committee command redefinition
+
+\date{05 June 2026} % hand in date
+
+\begin{document}
+\maketitle
+%\makededication
+% \makeacks
+
+% We include individual parts using latex \include command: 
+%    https://www.overleaf.com/learn/latex/Management_in_a_large_project
+
+\input{abstract.tex}
+\maketoc
+
+\input{intro.tex}
+\input{background.tex}
+\input{body.tex}         % split if needed 
+\include{conclusion.tex}
+
+\cleardoublepage
+\phantomsection
+\addcontentsline{toc}{chapter}{Bibliography}
+\printbibliography
+
+% \appendix % optional appendix
+% \input{appendix.tex} % split into files if needed
+
+\end{document}
