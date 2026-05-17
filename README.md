@@ -123,9 +123,11 @@
 - Start Report and Documentation.
 
 # Week 12 2026-05-12
-- Try fixing the `throw` annotation error. Stack trace shows that we call
-  `SourcefileLoader.doComplete` however `throw` does not have a source file...
-- Report writing.
+- Try fixing the `throw` annotation error.
+  I think the issue is related to the fact that it's `lazy`, and `addAnnotation` makes it computes too soon.
+  Or maybe because all annotation are defined below (in the `Definitions.scala` file), so maybe the
+  annotation is not available at that point.
+- Wrote most of the report.
 
 # Week 13 2026-05-19
 

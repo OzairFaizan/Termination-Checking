@@ -2,8 +2,32 @@
 \chapter{Conclusion}
 %%%%%%%%%%%%%%%%%%%%
 
-In the conclusion, you repeat the main result and finalize the discussion of
-your project. Mention the core results and why as well as how your system
-advances the status quo.
+This report has presented the design, implementation, and evaluation of an
+opt-in termination checker for the Scala 3 compiler. The checker operates as a
+\texttt{MiniPhase} on the typed AST, performs structural decrease analysis over
+Algebraic Data Types, and handles recursive functions, mutual recursion, and
+while loops. It is activated by the \texttt{-Ycheck-termination} compiler flag
+and applies only to methods annotated with \texttt{@terminates}, making it fully
+backward-compatible with existing Scala projects.
 
-You may optionally include a subsection on future work, but aim to end with a concluding sentence on why the current results may have set the stage for the future.
+The implementation demonstrates that a useful termination guarantee can be
+provided within a general-purpose compiler without relying on SMT solvers,
+rewriting engines, or external tools. For the patterns that Scala developers
+most commonly encounter: structural recursion over inductively defined data,
+mutual recursion between methods, and loops driven by a structurally decreasing
+variable, the checker provides a lightweight mechanism that is immediately
+available at compile time.
+
+The principal limitations are the absence of cross-parameter size tracking, and
+the lack of numeric decrease analysis. Each of these represents a
+well-understood problem with known techniques for improvement, and addressing
+them in future work would bring the checker closer to the expressiveness of more
+heavyweight tools.
+
+In sum, the checker occupies a practical middle ground in the landscape of
+termination verification. More accessible than a proof assistants while
+providing a verification framework for safety-critical code, library
+foundations, and any context where termination is a correctness requirement, the
+\texttt{@terminates} annotation provides a low-overhead way to document and
+enforce that guarantee.
+
