@@ -1,50 +1,211 @@
-%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Design and Approach}
-%%%%%%%%%%%%%%%%
-\begin{itemize}
-    \item Conservative: rejects programs that may terminate, but rejects all
-    non-terminating ones.
-    \item Opt-in.
-    \item Escape hatches, their risks and reasoning behind them.
-    \item Description of annotations and reasoning behind them.
-    \item No external tools.
-\end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%
+
+The checker is implemented entirely within the Scala 3 compiler as a
+\texttt{MiniPhase}, operating directly on the typed abstract syntax tree (AST)
+produced by earlier compiler phases. It does not rely on any external solver,
+rewriting engine, or verification framework. All information needed is obtained
+through the compiler's own symbol and type APIs. This makes the checker
+lightweight, and immediately available to any project that uses the Scala 3
+compiler, without additional installation or configuration.
+
+Furthermore, unlike proof assistants that enforce termination globally, this
+checker is entirely opt-in. This aligns with the needs of a general-purpose
+language like Scala, where the overhead of proving the termination of every
+method is impractical.
+The phase is enabled by the \texttt{-Ycheck-termination} compiler flag and only
+methods annotated with \texttt{@terminates} and methods called by the annotated
+methods are checked.
+
+\section{Conservative, Sound Analysis}
+The checker prioritizes soundness over completeness: it will never accept
+non-terminating methods, however, it may reject methods that do in fact
+terminate.
+During the AST traversal, the checker assigns every value a \texttt{Size}
+(either \texttt{Smaller}, \texttt{Same}, or \texttt{Unknown}) relative to the
+parameters of the method, then, at each recursive call, the arguments to the
+call are compared lexicographically to the method's parameters. However, the
+sizes are inferred syntactically, meaning that the checker will reject programs
+that terminate if the termination relies on semantic properties.
+
+\section{Escape Hatches}
+Because the analysis is conservative, rather than forcing developers to
+restructure their code for the benefit of the checker, escape hatches are
+provided as annotations, shifting the analysis on the developer. Misuse of these
+escape hatches can cause the checker to accept a non-terminating function, so
+they should be used with care.
+
+The \texttt{@assumeTerminates} annotation applied to a method causes the checker
+to accept any call to that method without inspecting its body. This is
+especially useful for Scala's standard library methods whose bodies are
+unavailable.
+
+The \texttt{uncheckedTermination} method allows the user to wrap a block that is
+not checked, this is useful for wrapping calls to external libraries when the
+source is unavailable to the user.
+
+The \texttt{@assumeDecreases} annotation applied to a method (typically a field
+accessor or a selector-like method), tells the checker that the called method on
+a value outputs a result that is strictly smaller than that value.
+This is useful when it's semantically clear that the value decreases, but the
+simple structural analysis fails.
+
+The \texttt{@assumeWellFounded} annotation applied to a type bypasses the
+well-foundedness check, asserting that the type admits no infinite descending
+chains. It is needed for types that are structurally well-founded but whose
+shape does not match the simple syntactic criterion the checker applies.
+
+The \texttt{@decreases} annotation is not an escape hatch, but is used to
+specifies in which order, should be used as the lexicographic measure for a
+given method. This only affects the order in which arguments are compared, and
+is necessary when the decreasing argument is not the first parameter, and the
+default left-to-right order would cause the check to fail.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Implementation}
 %%%%%%%%%%%%%%%%%%%%%%%%
-\begin{itemize}
-    \item MiniPhase.
-    \item What does ``Smaller'' mean?
-    \item Size maps \texttt{valMap} and \texttt{varMap}.
-    \item Call stack.
-    \item \texttt{typeWellFounded}.
-    \item \texttt{areSmaller} lexicographic check.
-    \item \texttt{methodOverrides}.
-    \item while loop checks and \texttt{varMap} updates.
-\end{itemize}
+
+The checker is implemented as a \texttt{MiniPhase} inside the
+\texttt{dotty.tools.dotc.transform} package.
+When a method is annotated with \texttt{@terminates}, is not abstract
+(\texttt{Deferred}), and has not already been verified in a prior traversal, the
+methods body is traversed. Successfully checked methods are accumulated in a
+\texttt{checked} set shared across all invocations of the phase. A method that
+has already been certified is not re-examined when it is called by another
+annotated method. The phase is entirely inactive unless the
+\texttt{-Ycheck-termination} compiler flag is set, ensuring zero overhead for
+projects that do not opt in.
+
+\section{Structural Decrease Analysis}
+The core analysis tracks how the sizes of values evolve as execution proceeds.
+A \texttt{valMap} associates local value symbols to a \emph{(source, size)}
+pair, recording where the value came from and whether it is \texttt{Smaller}
+or \texttt{Same} relative to that source. An analogous \texttt{varMap} tracks
+mutable variables (\texttt{var}), updated at every assignment.
+
+\subsection{Pattern Matching and ADTs}
+Pattern matching on an Algebraic Data Type is the primary mechanism by which
+structural decrease is established. When the selector of a \texttt{match} has
+a synthetic \texttt{unapply} method, i.e., one generated automatically by the
+compiler for a \texttt{case class} or \texttt{enum}, the checker knows that
+the binders introduced by each pattern are strict sub-value of the
+selector. The method \texttt{mapMatchedSymbols} walks the pattern tree. The
+outermost binder (the variable that names the whole matched value) is recorded
+as \texttt{Same} size as the selector, while any nested binders (the fields
+extracted from the constructor) are recorded as \texttt{Smaller}.
+If the \texttt{unapply} method is user-defined (not synthetic), the checker
+cannot guarantee that deconstruction actually yields a smaller value, and
+emits a warning, and does not consider the sub-value as \texttt{Smaller}.
+
+\subsection{Field Access and \texttt{peelSelects}}
+Beyond pattern matching, a decrease can also be established by selecting a
+field of a value. The helper \texttt{peelSelects} resolves a chain of
+field-access expressions back to an original symbol and determines whether a
+decrease occurred along the way. A field selection is considered to decrease
+the size of the value when the selected field's name corresponds to a
+constructor parameter of a \texttt{case class}, or when the field's method is
+annotated with \texttt{@assumeDecreases}.
+
+\subsection{\texttt{methodOverrides} {\color{magenta}Find a better name}}
+When a method is called on a value whose static type is a sealed trait or
+abstract class, the checker cannot know at compile time which concrete
+implementation will be invoked at runtime. To remain sound,
+\texttt{methodOverrides} enumerates all sealed strict descendants of the type
+and resolves the method name in each descendant's type. If any overrides are
+found, the checker verifies each one independently. A call is accepted only if
+every possible override terminates. If the type is concrete, no override
+resolution is needed and the method symbol is used directly.
+
+\subsection{Well-Foundedness}
+A structural decrease is only a valid termination argument if the type being
+decreased is well-founded, that is, it admits no infinite descending chain of
+sub-values. The checker enforces this via \texttt{typeWellFounded}. A sealed
+type is well-founded when all of its children are well-founded. A case object
+(a leaf of an ADT) is trivially well-founded. A case class is well-founded
+when all of its fields are stable members that correspond directly to
+constructor parameters. If the type is not well-founded, the checker emits a
+warning and considers the value of size \texttt{Unknown}.
+
+\subsection{Lexicographic Ordering}
+When checking a recursive call, the method \texttt{areSmaller} compares the list
+of arguments against the list of parameters of the recursive method in order. It
+calls \texttt{isLexicoDecreasing}, which steps through the argument–parameter
+pairs. If the first pair is \texttt{Smaller}, the check succeeds provided the
+type is well-founded. If it is \texttt{Same}, the check proceeds to the next
+pair. If it is \texttt{Unknown}, the check fails. The ordering of the pairs can
+be controlled by the \texttt{@decreases} annotation, which specifies an ordering
+of parameters to use as the measure, overriding the default left-to-right order.
+
+
+\section{Mutual Recursion}
+The checker handles mutual recursion by inlineing called methods. A
+\texttt{callStack} tracks the methods currently being analyzed. When a call to a
+method is encountered, the checker first looks it up in \texttt{callStack}.
+If it is already present, the call is recursive (possibly mutual) and
+\texttt{areSmaller} is invoked to verify the decrease. If the method is not yet
+on the stack, \texttt{traverseCalled} is invoked, which pushes the callee onto
+the stack, maps the actual arguments to the callee's parameters in
+\texttt{valMap}, traverses the callee's body, and then restores the stack and
+map. This allows the checker to follow chains of mutual recursion of arbitrary
+depth.
+
+
+\section{While Loops}
+While loops are treated separately from recursive calls. Since they rely on
+mutable variable. The checker performs two traversals. In the first traversal,
+call checking is disabled and \textttt{varMap} is reset to empty. The purpose of
+this traversal is to determine whether there exists a variable that is assigned
+a strictly smaller value (with respect to itself) inside the loop body. If such
+a variable exists the loop terminates. Note that since well-founded types cannot
+decrease indefinitely, we have two possible cases. Either the loop condition
+becomes false, hence, the loop terminates. Or we hit a leaf of the ADT and the
+assignment to a strictly smaller value results in an exception being thrown
+(this is the case for e.g. \texttt{Nil.tail}) or the \texttt{@assumeDecreases}
+escape hatch was wrongly used.
+The checker then proceeds to a second traversal with call checking re-enabled,
+and the original \texttt{varMap} restored so that any recursive calls inside the
+loop body are themselves verified to be terminating.
+
+\subsection{\texttt{varMap} Updates}
+An \texttt{Assign} node records \texttt{Smaller} in \texttt{varMap} if
+\texttt{areSmaller} can confirm the right-hand side is smaller than the current
+value of the variable, and \texttt{Unknown} otherwise.
+
+For branching and looping constructs, the checker explores each branch
+independently and then merges the results where the worst-case size is kept.
+Concretely, when traversing an \texttt{If} expression or \texttt{Match} cases,
+we compute one \texttt{varMap} for each branch, then, for each variable in the
+union of all maps, it is considered \texttt{Unknown} if \texttt{Unknown} in
+any branch, \texttt{Smaller} if \texttt{Smaller} in all branches and
+\texttt{Same} otherwise. Then the original \texttt{varMap} is updated with the
+new information from the branching construct.
+For \texttt{WhileDo}, the body might never execute, therefore, we merely merge
+the original \texttt{varMap} with a \texttt{varMap} computed by traversing the
+body of the loop.
 
 
 %%%%%%%%%%%%%%%%%%%%
-\chapter{Evaluation}
+\chapter{Evaluation and Limitations}
 %%%%%%%%%%%%%%%%%%%%
+\section{\color{magenta} Performance and metrics}
 \begin{itemize}
     \item Examples of when it works, and how.
-    \item Performance and metrics.
+    \item Examples of when it doesn't work, and why.
 \end{itemize}
 
 
 %%%%%%%%%%%%%%%%%%%%
-\chapter{Correctness and Limitations}
+\chapter{Correctness}
 %%%%%%%%%%%%%%%%%%%%
 \begin{itemize}
     \item Short correctness sketch, for recursion, mutual recursion, while
     loops, and, higher-order-function.
-    \item Examples of when it doesn't work, and why.
 \end{itemize}
 
 
 %%%%%%%%%%%%%%%%%%%%
 \chapter{Discussion}
 %%%%%%%%%%%%%%%%%%%%
+
