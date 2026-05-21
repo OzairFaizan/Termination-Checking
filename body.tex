@@ -108,15 +108,27 @@ the size of the value when the selected field's name corresponds to a
 constructor parameter of a \texttt{case class}, or when the field's method is
 annotated with \texttt{@assumeDecreases}.
 
-\subsection{\texttt{methodOverrides} {\color{magenta}Find a better name}}
-When a method is called on a value whose static type is a sealed trait or
-abstract class, the checker cannot know at compile time which concrete
-implementation will be invoked at runtime. To remain sound,
-\texttt{methodOverrides} enumerates all sealed strict descendants of the type
-and resolves the method name in each descendant's type. If any overrides are
-found, the checker verifies each one independently. A call is accepted only if
-every possible override terminates. If the type is concrete, no override
-resolution is needed and the method symbol is used directly.
+\subsection{Verifying Polymorphic Method Calls}
+Object-oriented languages like Scala heavily utilize subtype polymorphism, where
+a method called on a value of a static type (such as a sealed trait or abstract
+class) is dynamically dispatched at runtime to a concrete implementation. This
+introduces a verification challenge not typically present in proof assistants
+like Rocq or Lean. Because our checker operates at compile time, it cannot
+definitively know which concrete method will be invoked at runtime.
+
+In the presence of dynamic dispatch, the checker must over-approximate the
+possible runtime behaviors. When a method call is encountered on a polymorphic
+type, the checker leverages Scala's \texttt{sealed} keyword, which restricts the
+set of possible subtypes to a known, finite set. The
+\texttt{methodOverrides} routine enumerates all sealed strict descendants of the
+static type and resolves the method name within each descendant's type. If any
+overrides are found, the checker verifies each one independently. A polymorphic
+call is accepted only if \emph{every} possible concrete implementation it could
+dispatch to is proven to terminate. By exhaustively checking the sealed
+hierarchy, the checker guarantees that whichever method is dynamically
+dispatched at runtime is safe. If even a single overriding method fails the
+termination check or if the hierarchy is not sealed, meaning an unknown subclass
+could be loaded at runtime the checker conservatively rejects the call.
 
 \subsection{Well-Foundedness}
 A structural decrease is only a valid termination argument if the type being
@@ -190,7 +202,7 @@ body of the loop.
 \chapter{Evaluation and Limitations}
 %%%%%%%%%%%%%%%%%%%%
 
-\section{\color{magenta} Performance and metrics}
+\section{\color{magenta} TODO: Performance and metrics}
 
 \section{What the Checker Can Verify}
 
@@ -254,7 +266,7 @@ and the call is accepted.
 Note that the annotation is on the output type to allow the use of function
 parameter symbols in the annotation parameters.
 
-\subsection{Mutual Recursion}
+\subsection{Mutual Recursion} \label{sec:mutualRec}
 \begin{minipage}[t]{0.45\textwidth}
     \begin{minted}[escapeinside=||]{scala}
     @terminates
@@ -285,7 +297,7 @@ onto \texttt{callStack} and maps argument \texttt{pn} to parameter \texttt{m} of
 \texttt{pn} < \texttt{n}$. Therefore, both functions are shown to be
 terminating.
 
-\subsection{Higher-Order Functions}
+\subsection{Higher-Order Functions} \label{sec:HOF}
 The checker can follow higher-order calls when the closure is available.
 \begin{minted}[escapeinside=||]{scala}
   sealed trait MyList[+A] {
@@ -316,7 +328,8 @@ $\texttt{l} = \texttt{hd} < \texttt{this} = \texttt{args} < \texttt{e}$.
 Furthermore, \texttt{foldRight} terminates as its \texttt{this} arguments
 decreases. We can view this as mutual recursion: \texttt{addAll} calls
 \texttt{foldRight} and \texttt{foldRight} calls \texttt{addAll} through
-\texttt{op}.
+\texttt{op}. Note, Stainless is currently unable to prove termination in this
+case and provides a counter-example which is false.
 
 \subsection{While Loops}
 A while loop terminates if some mutable variable is unconditionally assigned a
@@ -365,8 +378,8 @@ Here, \texttt{f} terminates, however, the recursive call \texttt{f(a)} in
           var res = 0
           var l = a
           while (!l.isEmpty) { // error
-            if true then l = l.tail
             res += l.head
+            if true then l = l.tail
           }
           res
 \end{minted}
@@ -392,22 +405,142 @@ The function \texttt{i} terminates, it can be seen by unrolling the recursive
 call. However, when the recursive call \textttt{i(pm, pn)} is found, the method
 \texttt{areSmaller} compares \texttt{pm} with \texttt{n} which results in
 \texttt{Unknown}. 
-This highlights a fundamental limitation of the checker's structural analysis as
-it verifies sizes strictly on a per-parameter basis. Techniques such as
-size-change termination can handle these cases but with a higher computational
+This highlights a fundamental limitation of the checker's structural analysis,
+as it verifies sizes strictly on a per-parameter basis. Techniques such as
+size-change termination, or the SMT-driven bounds analysis used by Stainless,
+can handle these cross-parameter cases but come with a higher computational
 overhead.
 
 
 %%%%%%%%%%%%%%%%%%%%
 \chapter{Correctness}
 %%%%%%%%%%%%%%%%%%%%
+
 \begin{itemize}
     \item Short correctness sketch, for recursion, mutual recursion, while
     loops, and, higher-order-function.
+    \item For us termination means that the function
+        either terminates or throws an error (which is considered as a type of
+        termination!)
+    \item Correctness here means soundness under the assumptions made by any
+        escape hatches.
 \end{itemize}
 
+In this chapter we give a correctness sketch for the termination checker. We use
+the term \emph{termination} to mean that a function either returns a value or
+throws an exception. Infinite loop or recursion are the only failure modes the
+checker is concerned with.
+Under this definition, a thrown exception counts as a form of termination,
+because the function does eventually stop executing.
+Correctness in this context means \emph{soundness} under any assumptions made by
+escape hatches, i.e., if the checker accepts a method, then that method
+terminates in the sense defined above, conditional on all assertions made.
 
-%%%%%%%%%%%%%%%%%%%%
-\chapter{Discussion}
-%%%%%%%%%%%%%%%%%%%%
+\section{Simple Recursion}
+Consider a method \texttt{f} with parameters $p_1, \ldots, p_k$ that has been
+accepted by the checker. By construction, every call within \texttt{f}'s body
+that is detected as recursive must pass \texttt{areSmaller}, which asserts that
+the argument tuple $(a_1, \ldots, a_k)$ is lexicographically strictly smaller
+than $(p_1, \ldots, p_k)$ with respect to the structural order of each type.
+
+More precisely, \texttt{isLexicoDecreasing} finds an index $i$ such that:
+$$ a_1 = p_1, \ldots, a_{i-1} = p_{i-1},\quad a_i < p_i, $$
+where $<$ denotes strict structural sub-value. The size of each argument is
+determined syntactically by \texttt{compareSize}, which follows the
+\texttt{valMap} chain back to a parameter of the method. A value recorded as
+\texttt{Smaller} means it was extracted from a constructor pattern or from a
+field access on a \texttt{case class}, guaranteeing that it is a proper
+sub-value of the original.
+
+A structural sub-value relationship is only a valid termination argument when
+the type in question is \emph{well-founded}, i.e., it admits no infinite
+descending chain of sub-values. The checker enforces this via
+\texttt{typeWellFounded}. A \texttt{sealed} type is well-founded if every child
+is well-founded, case objects are trivially well-founded (they are leaves), and
+a case class is well-founded when all of its fields are stable members
+corresponding directly to constructor parameters. Because every recursive call
+strictly decreases the argument tuple in this well-founded order, there can be
+no infinite sequence of recursive calls, so \texttt{f} terminates.
+
+
+\section{Mutual Recursion}
+The checker handles mutual recursion by inlining method calls. When \texttt{f}
+calls a method \texttt{g} that is not yet on the \texttt{callStack},
+\texttt{g}'s body is traversed with \texttt{g} pushed onto the stack and the
+actual arguments mapped to \texttt{g}'s parameters in \texttt{valMap}. Any call
+inside \texttt{g}'s body that is already on the stack (whether to \texttt{g} or
+back to \texttt{f}) is treated as a recursive call and must satisfy
+\texttt{areSmaller} with respect to the that method's parameters.
+
+The invariant is that the \texttt{callStack} represents the current
+chain of inlined calls. When a method already on the stack is called, the
+checker checks that the arguments to that method's original parameters are
+strictly smaller. Since \texttt{valMap} propagates size information through
+argument-to-parameter mappings as each callee is pushed, size inequalities can
+be composed across an arbitrary chain of mutual calls.
+
+For example, in the mutual recursion between \texttt{isEven} and
+\texttt{isOdd} over the \texttt{Nat} ADT in \autoref{sec:mutualRec}, when the
+checker encounters the call \texttt{isEven(pm)} inside \texttt{isOdd}, it traces
+the chain $\texttt{pm} < \texttt{m} = \texttt{pn} < \texttt{n}$ through
+\texttt{valMap}, establishing that the argument to \texttt{isEven} is
+\texttt{Smaller} than \texttt{isEven}'s original parameter. Because \texttt{Nat}
+is well-founded, the call is accepted and both functions terminate.
+
+More generally, suppose the inlined call chain is
+$f_0 \to f_1 \to \cdots \to f_n \to f_k$ for some $k \leq n$.
+The checker requires that the arguments passed to $f_k$ are strictly smaller
+than $f_k$'s parameters in the well-founded order. Since \texttt{valMap} records
+the accumulated size relationships through every parameter mapping along the
+chain, a \texttt{Smaller} assertion implies that each iteration of the mutual
+cycle strictly decreases the relevant argument. Again, by well-foundedness, this
+is possible finitely many times.
+
+
+\section{While Loops}
+A while loop is analyzed by two traversals of its body. In the first traversal,
+recursive call checking is disabled and \texttt{varMap} is initialized to empty.
+The checker looks for a mutable variable \texttt{v} such that every execution
+path through the loop body assigns \texttt{v} a value that is \texttt{Smaller}
+(i.e., a structural sub-value of \texttt{v}'s current value).
+The merging rules for \texttt{varMap} over branches ensure that if any branch
+leaves \texttt{v} at \texttt{Same} or \texttt{Unknown}, it is not counted as a
+decreasing variable. Only a variable that decreases in \emph{all} branches
+qualifies and if no such variable exists the checker reports an error.
+
+Once a decreasing variable \texttt{v} is identified, termination of the loop
+follows from well-foundedness of \texttt{v}'s type. Because \texttt{v} is
+strictly smaller after every iteration, and the type of \texttt{v} is
+well-founded (no infinite descending chains exist), the loop must eventually
+reach a point where the assignment \texttt{v = v.someField} would dereference a
+leaf value (such as \texttt{Nil.tail}), at which point an exception is thrown
+(which counts as termination) or the loop condition becomes false before that
+point is reached. Both are valid terminations under our definition.
+
+The second traversal then verifies, that any recursive calls inside the loop
+body also terminate.
+
+
+\section{Higher-Order Functions}
+When a call to a higher-order function is encountered, the checker inlines the
+callee's body just as for ordinary calls. Inside that body, if the higher-order
+argument (e.g., an \texttt{op} parameter of type \texttt{(A, B) => B}) is
+applied, \texttt{getMethodSymbol} resolves the application back to the concrete
+closure that was passed at the call site. The closure's body is then traversed
+under the same call stack and size maps.
+This means that a recursive call made inside a closure passed to a higher-order
+function is treated exactly like a recursive call to an ordinary function.
+
+As illustrated by the \texttt{addAll}/\texttt{foldRight} example in
+\autoref{sec:HOF}, the checker can establish the chain
+$\texttt{hd} < \texttt{this} = \texttt{args} < \texttt{e}$ through inlining
+of \texttt{foldRight} and resolution of \texttt{op} to the closure. The
+correctness argument reduces to the mutual recursion case.
+
+
+\section{Soundness Under Escape Hatches}
+In all cases, the checker does not verify the assertions made by any escape
+hatches, and it is the developer's responsibility to ensure they are correct.
+Under correct use of escape hatches, the conditional soundness guarantee is as
+strong as the unconditional one.
 

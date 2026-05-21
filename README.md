@@ -130,6 +130,11 @@
 - Wrote most of the report.
 
 # Week 13 2026-05-19
+- Added an example in the introduction, comparing with other tools.
+- Stainless can prove all the 3 examples given which we cannot, however, it provides a wrong
+  counter-example for the higher-order function example.
+- New branch with error due to annotation on `throw`.
+- Push changes with formatting.
 
 # Week 14 2026-05-28
 

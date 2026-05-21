@@ -15,20 +15,46 @@ construct infinite proofs, effectively allowing proofs of false statements
 Rocq, Agda, and Lean employ techniques such as recursive calls to be on
 syntactically smaller arguments, size-change principle \cite{SizeChange},
 well-founded measures \cite{wellfoundedRelation}, or manually provided proofs.
+For example, in a proof assistant like Rocq, termination is established when
+recurring on structurally smaller components of an inductively defined type,
+such as Peano integers:
+\begin{minted}{coq}
+      Fixpoint sum (l: list nat): nat :=
+        match l with
+        | [] => 0
+        | hd :: tl => hd + sum tl
+        end.
+\end{minted}
 
 However, proof assistants are often too rigid for general-purpose programming.
 Tools like Stainless \cite{DBLP:journals/corr/abs-1904-03482} provide a more
 flexible approach by leveraging powerful SMT (Satisfiability Modulo Theories)
-solvers, capable of proving complex termination properties. But Stainless relies
-on external tools, and operates as an external toolchain to Scala. This leaves a
-gap in general-purpose languages where developers often lack a built-in,
-lightweight mechanism to verify the termination of critical functions without
-relying on a separate verification framework.
+solvers, capable of proving complex termination properties.
+Stainless excels at verifying semantic termination bounds over bounded and
+unboudned integers. For instance, Stainless can prove the termination of
+\begin{minted}{scala}
+        def sum(l: List[BigInt]): BigInt =
+          if l.isEmpty then 0
+          else l.head + sum(l.tail)
+\end{minted}
+But Stainless relies on external tools, and operates as an external toolchain to
+Scala. This leaves a gap in general-purpose languages where developers often
+lack a built-in, lightweight mechanism to verify the termination of critical
+functions without relying on a separate verification framework.
 
 To bridge this gap, this report presents an opt-in termination checker
 implemented natively as a \texttt{MiniPhase} within the Scala 3 compiler.
 It operates in a middle ground between the heavyweight, strict checks of proof
 assistants and the lack of it in general-purpose languages.
+Similar to proof assistants, it ensures termination natively through structural
+decrease analysis over Algebraic Data Types:
+\begin{minted}{scala}
+        @terminates
+        def sum(list: List[Int]): Int =
+          list match
+            case Nil => 0
+            case hd :: tl => sum(tl)
+\end{minted}
 The implementation focuses on common patterns Scala developers encounter,
 however due to the lightweight structural analysis, it inevitably flags some
 complex but terminating functions. To maintain usability, we provide several
