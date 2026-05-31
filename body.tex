@@ -18,6 +18,11 @@ The phase is enabled by the \texttt{-Ycheck-termination} compiler flag and only
 methods annotated with \texttt{@terminates} and methods called by the annotated
 methods are checked.
 
+Termination contract can be enabled at the interface level. The checker enforces
+that all overriding methods inherit the \texttt{@terminates} annotation. If an
+overriding method omits it, an error is thrown, ensuring that termination
+intents stated at the interface level are maintained.
+
 \section{Conservative, Sound Analysis}
 The checker prioritizes soundness over completeness: it will never accept
 non-terminating methods, however, it may reject methods that do in fact
@@ -55,12 +60,6 @@ The \texttt{@assumeWellFounded} annotation applied to a type bypasses the
 well-foundedness check, asserting that the type admits no infinite descending
 chains. It is needed for types that are structurally well-founded but whose
 shape does not match the simple syntactic criterion the checker applies.
-
-The \texttt{@decreases} annotation is not an escape hatch, but is used to
-specifies in which order, should be used as the lexicographic measure for a
-given method. This only affects the order in which arguments are compared, and
-is necessary when the decreasing argument is not the first parameter, and the
-default left-to-right order would cause the check to fail.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%
@@ -201,8 +200,6 @@ body of the loop.
 %%%%%%%%%%%%%%%%%%%%
 \chapter{Evaluation and Limitations}
 %%%%%%%%%%%%%%%%%%%%
-
-\section{\color{magenta} TODO: Performance and metrics}
 
 \section{What the Checker Can Verify}
 
@@ -356,7 +353,7 @@ recursive calls inside the loop body also terminate.
 \section{What the Checker Cannot Verify}
 \subsection{Semantic Termination Arguments}
 Because sizes are inferred syntactically, the checker rejects any function whose
-termination depends on a semantic properties.
+termination depends on semantic properties.
 \begin{minted}[escapeinside=||]{scala}
         @terminates
         def f(a: List[Int]): Int =
@@ -402,7 +399,7 @@ The checker does not support swapping decreasing arguments.
                 case Succ(pm) => i(pm, pn) // error
 \end{minted}
 The function \texttt{i} terminates, it can be seen by unrolling the recursive
-call. However, when the recursive call \textttt{i(pm, pn)} is found, the method
+call. However, when the recursive call \texttt{i(pm, pn)} is found, the method
 \texttt{areSmaller} compares \texttt{pm} with \texttt{n} which results in
 \texttt{Unknown}. 
 This highlights a fundamental limitation of the checker's structural analysis,
@@ -415,16 +412,6 @@ overhead.
 %%%%%%%%%%%%%%%%%%%%
 \chapter{Correctness}
 %%%%%%%%%%%%%%%%%%%%
-
-\begin{itemize}
-    \item Short correctness sketch, for recursion, mutual recursion, while
-    loops, and, higher-order-function.
-    \item For us termination means that the function
-        either terminates or throws an error (which is considered as a type of
-        termination!)
-    \item Correctness here means soundness under the assumptions made by any
-        escape hatches.
-\end{itemize}
 
 In this chapter we give a correctness sketch for the termination checker. We use
 the term \emph{termination} to mean that a function either returns a value or
@@ -543,4 +530,73 @@ In all cases, the checker does not verify the assertions made by any escape
 hatches, and it is the developer's responsibility to ensure they are correct.
 Under correct use of escape hatches, the conditional soundness guarantee is as
 strong as the unconditional one.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Discussion}
+%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Annotations Added to the Standard Library}
+Integrating the checker with idiomatic Scala code requires annotating parts of
+the standard library that the checker cannot verify automatically.
+Two categories of annotations are necessary.
+
+Adding \texttt{@assumeWellFounded} on well-founded types that use mutable
+variables under the hood. The \texttt{List[+A]} type is declared \texttt{sealed
+abstract class} with two subtypes: \texttt{Nil} a \texttt{case object} and
+\texttt{::} a \texttt{case class}. This almost satisfies the checker's
+well-foundedness, however, \texttt{::} declares its \texttt{next} field as
+\texttt{private[scala] var}, making it a mutable field rather than a stable
+member, therefore, failing the check.
+Other types in the standard library may benefit from similar semantic assertions
+that are syntactically false.
+
+Adding \texttt{@assumeDecreases} on \texttt{head} and \texttt{tail}. Since they
+are defined as methods, the checker cannot infer a decrease automatically,
+adding the annotation tells the checker that calling \texttt{.tail} on a
+\texttt{List} value yields a strictly smaller value.
+The same annotations are added on \texttt{Nil}, even though those methods throw
+exceptions rather than returning a smaller value. This is correct under the
+termination definition where exceptions are a form of termination. Annotating
+them allows the checker to accept calls on these methods on any \texttt{List}
+regardless of whether they are empty or not which the checker cannot infer.
+
+Furthermore, methods like \texttt{+}, \texttt{-}, \texttt{<}, etc. on
+\texttt{Int}, \texttt{Float}, and other primitive types have their
+implementations in compiled bytecode. Their \texttt{defTree} is empty, so the
+checker emits warnings as their bodies are available for analysis. To suppress
+these warnings \texttt{@assumeTerminates} annotations where added to these
+operators.
+
+
+\section{Lexicographic Ordering over the Size-Change Principle}
+The global size-change principle \cite{SizeChange} was considered as an
+alternative to the per-call lexicographic check. It would handle the
+cross-parameter swapping case and some mutual recursion patterns that the
+current checker cannot.
+However, the size-change principle has been shown to be PSPACE-complete. For a
+compiler phase that runs on every build, a PSPACE algorithm over the full call
+graph is not acceptable.
+Furthermore, when the size-change check fails, the failure is a global property
+of the call graph rather than a property of a specific call site. The per-call
+lexicographic check, by contrast, fails at a precise source location with a
+precise argument, making it straightforward to guide the developer toward a fix
+or an appropriate escape hatch.
+
+
+\section{Limitations}
+Functions that terminate because an integer decreases toward a bound, rather
+than a data structure shrinks, cannot be verified. This covers a significant
+class of imperative algorithms. The most natural extension would be to allows
+the \texttt{@decreases} annotation to accept a well-founded integer expression,
+checked at each loop iteration or recursive call. This would not require an SMT
+solver and could be implemented within the same syntactic framework.
+
+When a method is called on a value whose static type is an unsealed trait or
+abstract class, the checker cannot enumerate the possible concrete
+implementations and conservatively rejects the call. In practice, this is most
+likely to arise with third-party library types that the checker has no
+visibility into. The correct response in those cases is to wrap the call in
+\texttt{uncheckedTermination} or to annotate the callee with
+\texttt{@assumeTerminates}.
 

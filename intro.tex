@@ -9,9 +9,23 @@ Problem, was proved to be undecidable in the general case by Alan Turing
 we must rely on restricted techniques that are sound however not complete.
 
 Termination is a requirement for logical consistency in formal verification and
-proof assistants, indeed, not-terminating functions can be exploited to
-construct infinite proofs, effectively allowing proofs of false statements
-\cite{InfFalse}. Consequently, existing approaches in proof assistants such as
+proof assistants. Indeed, non-terminating functions can be exploited to
+effectively allow the type system to accept proofs of false statements
+\cite{InfFalse}.
+To illustrate this vulnerability in a system utilizing refinement types such as
+\cite{RefType}, consider how an infinite loop can trick the compiler into
+accepting a logical contradiction by forging an impossible type:
+\begin{minted}{scala}
+        def first[A](l: {v: List[A] with v != Nil}): A = l.head
+        def loop[A](l: List[A]): {v: List[A] with v != Nil} = loop(l)
+        val nothing: Nothing = first(loop(Nil))
+        val False: {x: Unit with false} = nothing
+\end{minted}
+The non-terminating function \texttt{loop} is considered well-typed, therefore,
+the type checker accepts the extraction of \texttt{Nothing} from \texttt{Nil}
+which can be used to prove any logical statement.
+
+Consequently, existing approaches in proof assistants such as
 Rocq, Agda, and Lean employ techniques such as recursive calls to be on
 syntactically smaller arguments, size-change principle \cite{SizeChange},
 well-founded measures \cite{wellfoundedRelation}, or manually provided proofs.

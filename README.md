@@ -135,8 +135,18 @@
   counter-example for the higher-order function example.
 - New branch with error due to annotation on `throw`.
 - Push changes with formatting.
+- Emit a warning when a non-sealed polymorphic method calls is made.
 
 # Week 14 2026-05-28
+- Add logical consistency example for refinement types in introduction.
+- Emit an error when a non-sealed polymorphic method calls is made, rather than a warning.
+- Overriding methods should have `@terminates`.
+- Update the report for the above.
+- `@decreases` should not be in escape hatches.
+- Add Discussion chapter.
+    - Where annotations have been added and where they need to be added.
+    - Design choices, alternatives.
+- Add documentation in the code.
 
 # Week 15 2026-06-05
 
