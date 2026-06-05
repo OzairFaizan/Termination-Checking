@@ -3,8 +3,11 @@
 \section{Termination Analysis Techniques}
 
 The theory of termination analysis relies on the notion of well-founded
-relations. A relation is well-founded if it contains no infinite descending
-chains. If every recursive call can be shown to pass arguments that are strictly
+relations. A binary relation $\prec$ on a set $S$ is well-founded if there are
+no infinite descending chains. That is, there exists no infinite sequence
+$(s_n)_{n\in\mathbb{N}}$ of elements in $S$ such that $s_{n+1} \prec s_n$
+for all $n\in\mathbb{N}$ \cite[31]{programSemantics}.
+If every recursive call can be shown to pass arguments that are strictly
 smaller than the parameters for some well-founded relation, the function
 terminates.
 The following techniques, commonly used in existing tools, extend this idea.
@@ -12,20 +15,27 @@ The following techniques, commonly used in existing tools, extend this idea.
 \subsection{Lexicographic Ordering}
 In functions with multiple arguments, we can construct a well-founded relation
 for the tuple of arguments from well-founded relations on each argument. 
-If the first evaluated argument is strictly smaller, the lexicographic decrease
-is satisfied, and the recursive call is considered safe, provided the argument's
-type is well-founded. If the argument is equal in size, the analysis proceeds to
-the next argument in the tuple. If the size is unknown or larger, the
-lexicographic check fails and termination cannot be guaranteed.
+Formally, given well-founded relations $\prec_i$ on sets $A_i$, the
+lexicographic order $\prec_\text{lex}$ on $A_1\times\cdots\times A_n$ is defined
+as \cite[175]{programSemantics}:
+$$ (a_1, \ldots, a_n) \prec_\text{lex} (b_1, \ldots, b_n) \iff
+\exists i\in\{1, \ldots, n\} \text{ such that } a_i \prec_i b_i
+\text{ and } \forall j<i, a_j = b_j .$$
+
 
 \subsection{Size-Change Principle}
 The size-change principle \cite{SizeChange} is a global termination analysis
 techniques that models how the size of values change at each function call.
-A program terminates if every infinite call sequence would require an infinite
-sequence of strictly decreasing values, which for well-founded data is
-impossible. The algorithm computes the transitive closure of each function
-call's \emph{size-change graphs}. Although quite effective, it is
-computationally expensive as it has been shown to be \textsf{PSPACE-HARD}.
+The analysis abstracts a program into a finite set of
+\emph{size-change graphs}, where each graph represents a function call and
+captures the size relations between the caller's and callee's parameters.
+Size change termination is specified as a decision problem: given a finite set
+of size-change graphs, does every infinite sequence of calls contain an infinite
+decreasing thread of parameters? If the answer is yes, the program must
+terminate, as well-founded data cannot decrease indefinitely.
+Although quite effective, the algorithm to solve this decision problem requires
+computing the transitive closure of the graphs which is computationally
+expensive and has been shown to be \textsf{PSPACE-complete}.
 
 \subsection{User-Provided Proofs}
 When automatic analysis fails, systems fall back on human intervention. In proof
@@ -37,7 +47,8 @@ The challenge of verifying program termination has led to the development of
 various tools, ranging from proof assistants to automated analyzers.
 
 \subsection{Rocq, Agda, and Lean}
-These are state-of-the-art interactive proof assistants based on dependent type
+Rocq \cite{rocq}, Agda \cite{agda}, and Lean \cite{lean}
+are state-of-the-art interactive proof assistants based on dependent type
 theory. They enforce termination for all functions by default.
 Rocq uses a syntactic guard condition for fixpoints, Agda and Lean employ a more
 sophisticated termination checker based on the above techniques.
@@ -49,8 +60,10 @@ AProVE \cite{AProVE} is an automated system for proving termination for
 general-purpose languages such as Java, C, and Haskell. It has achieved
 state-of-the-art results in the Termination Competition
 \footnote{\url{https://termination-portal.org/wiki/Termination_Competition_2025}}.
-However, it does not operate on the source program but relies on rewriting of
-the program.
+For Haskell, \cite{AProVEHaskell} implements in AProVE an approach, that
+symbolically evaluates a given start term under Haskell's lazy evaluation to
+construct a termination graph, then translates that graph into dependency-pair
+problems solved by term rewriting techniques.
 
 \subsection{Stainless}
 Stainless \cite{DBLP:journals/corr/abs-1904-03482} is a verification framework

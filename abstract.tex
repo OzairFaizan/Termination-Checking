@@ -1,20 +1,26 @@
 \begin{abstract}
 
-Determining whether a program will finish executing is,
-in general, undecidable. Nevertheless, ensuring termination is crucial for
-safety-critical systems, and the foundations of proof assistants.
+Termination is a crucial property for safety-critical systems and plays an
+important role in proof assistants, where restrictions to terminating
+definitions can be necessary to preserve soundness.
+While most proof assistants enforce termination strictly, they are often too
+strict for general-purpose programming. Existing verification tools for Scala,
+such as Stainless, rely on external SMT solvers that add significant
+verification time and dependencies. This leaves a gap for a built-in,
+lightweight mechanism to verify termination natively without an external
+framework.
 
 This report presents the design and implementation of an opt-in termination
-checker for the Scala 3 compiler, implemented as a \texttt{MiniPhase}.
+checker for the Scala 3 compiler.
 Methods annotated with \texttt{@terminates} are verified to be terminating by 
 leveraging structural decrease analysis of Algebraic Data Types (ADTs).
 
 The checker can handle termination of recursive functions, mutual recursion
-and while loops.
-The user may use escape hatches about termination of some functions or
-well-foundedness of ADTs.
-If no errors were raised, the annotated method is guaranteed to terminate under
-the assumptions made by any escape hatches.
+and while loops, but inevitably flags some terminating functions. 
+To maintain usability, developers can utilize escape hatches to manually
+assert that some functions terminate or that some ADTs are well-founded.
+If no errors were raised, the annotated method is guaranteed provided that
+all such assertions are valid.
 
 \end{abstract}
 

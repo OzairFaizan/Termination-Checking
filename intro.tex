@@ -3,35 +3,45 @@
 Termination is a fundamental property of computer programs and a cornerstone of
 formal verification. Infinite loops can lead to system failure, resource
 exhaustion, and application crashes.
-However, ensuring that a program will eventually halt known as the Halting
+However, ensuring that a program will eventually halt, known as the Halting
 Problem, was proved to be undecidable in the general case by Alan Turing
 \cite{Turing1937}. Since no algorithm can universally solve the Halting Problem,
 we must rely on restricted techniques that are sound however not complete.
 
-Termination is a requirement for logical consistency in formal verification and
-proof assistants. Indeed, non-terminating functions can be exploited to
+When working with total functions, termination is a requirement for logical
+consistency in formal verification and proof assistants.
+Indeed, in such settings, non-terminating functions can be exploited to
 effectively allow the type system to accept proofs of false statements
 \cite{InfFalse}.
 To illustrate this vulnerability in a system utilizing refinement types such as
 \cite{RefType}, consider how an infinite loop can trick the compiler into
 accepting a logical contradiction by forging an impossible type:
 \begin{minted}{scala}
-        def first[A](l: {v: List[A] with v != Nil}): A = l.head
-        def loop[A](l: List[A]): {v: List[A] with v != Nil} = loop(l)
-        val nothing: Nothing = first(loop(Nil))
-        val False: {x: Unit with false} = nothing
+        def asNonEmpty[A](l: List[A]): {b: Boolean with b == true && l != Nil} =
+          val res = asNonEmpty(l)
+          res
+        @main def main =
+          val l = Nil: {l: List[Int] with asNonEmpty(l)}
 \end{minted}
-The non-terminating function \texttt{loop} is considered well-typed, therefore,
-the type checker accepts the extraction of \texttt{Nothing} from \texttt{Nil}
-which can be used to prove any logical statement.
+The non-terminating function \texttt{asNonEmpty} is considered well-typed,
+and therefore the type checker accepts the impossible refinement type for
+\texttt{Nil}. While the type system's logical soundness is compromised at
+compile time, the impossible type is not materialized at runtime.
 
-Consequently, existing approaches in proof assistants such as
-Rocq, Agda, and Lean employ techniques such as recursive calls to be on
-syntactically smaller arguments, size-change principle \cite{SizeChange},
-well-founded measures \cite{wellfoundedRelation}, or manually provided proofs.
+It is worth noting that there are consistent formal systems that do not require
+termination to derive correct conclusions. They are usually based on partial
+functions. Notable examples include the domain theory as mechanized in the LCF
+proof assistant family \cite{LCFtoHOL}, and more recently, the Iris framework
+\cite{Iris}. However, we want to work with total functions over algebraic
+data types, as such termination remains a concern.
+
+Consequently, proof assistants dealing with total
+functions such as Rocq, Agda, and Lean employ techniques such as recursive calls
+to be on syntactically smaller arguments, size-change principle
+\cite{SizeChange}, well-founded measures \cite{wellfoundedRelation}, or manually
+provided proofs.
 For example, in a proof assistant like Rocq, termination is established when
-recurring on structurally smaller components of an inductively defined type,
-such as Peano integers:
+recurring on structurally smaller components of an inductively defined type:
 \begin{minted}{coq}
       Fixpoint sum (l: list nat): nat :=
         match l with
@@ -45,7 +55,7 @@ Tools like Stainless \cite{DBLP:journals/corr/abs-1904-03482} provide a more
 flexible approach by leveraging powerful SMT (Satisfiability Modulo Theories)
 solvers, capable of proving complex termination properties.
 Stainless excels at verifying semantic termination bounds over bounded and
-unboudned integers. For instance, Stainless can prove the termination of
+unbound integers. For instance, Stainless can prove the termination of
 \begin{minted}{scala}
         def sum(l: List[BigInt]): BigInt =
           if l.isEmpty then 0
@@ -62,6 +72,7 @@ It operates in a middle ground between the heavyweight, strict checks of proof
 assistants and the lack of it in general-purpose languages.
 Similar to proof assistants, it ensures termination natively through structural
 decrease analysis over Algebraic Data Types:
+\newpage
 \begin{minted}{scala}
         @terminates
         def sum(list: List[Int]): Int =
@@ -71,7 +82,7 @@ decrease analysis over Algebraic Data Types:
 \end{minted}
 The implementation focuses on common patterns Scala developers encounter,
 however due to the lightweight structural analysis, it inevitably flags some
-complex but terminating functions. To maintain usability, we provide several
+complex terminating functions as possibly non-terminating. To maintain usability, we provide several
 escape hatches. Developers can use annotations like \texttt{@assumeTerminates},
 \texttt{@assumeDecreases}, and \texttt{@assumeWellFounded} to manually assert
 properties that the checker cannot automatically infer. This approach provides a

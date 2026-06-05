@@ -17,6 +17,10 @@ method is impractical.
 The phase is enabled by the \texttt{-Ycheck-termination} compiler flag and only
 methods annotated with \texttt{@terminates} and methods called by the annotated
 methods are checked.
+Additionally, the phase requires the bodies of functions for the analysis in
+order to inline function calls, as such, the \texttt{-Yretain-trees} flag is
+required to retain the ASTs of the definitions' bodies, since otherwise only
+signatures of definitions are kept.
 
 Termination contract can be enabled at the interface level. The checker enforces
 that all overriding methods inherit the \texttt{@terminates} annotation. If an
@@ -31,8 +35,10 @@ During the AST traversal, the checker assigns every value a \texttt{Size}
 (either \texttt{Smaller}, \texttt{Same}, or \texttt{Unknown}) relative to the
 parameters of the method, then, at each recursive call, the arguments to the
 call are compared lexicographically to the method's parameters. However, the
-sizes are inferred syntactically, meaning that the checker will reject programs
-that terminate if the termination relies on semantic properties.
+sizes are inferred syntactically, meaning that we only track a decreasing size
+when selecting fields of ADTs. Because other measures such as those that 
+require reasoning about arithmetic are out of scope, the checker will reject
+programs that terminate if the termination relies on such semantic properties.
 
 \section{Escape Hatches}
 Because the analysis is conservative, rather than forcing developers to
@@ -44,23 +50,54 @@ they should be used with care.
 The \texttt{@assumeTerminates} annotation applied to a method causes the checker
 to accept any call to that method without inspecting its body. This is
 especially useful for Scala's standard library methods whose bodies are
-unavailable.
+unavailable. For instance, primitive operators like addition terminate
+but their body is not available for analysis:
+\begin{minted}{scala}
+        @assumeTerminates
+        def +(x: Int): Int
+\end{minted}
 
 The \texttt{uncheckedTermination} method allows the user to wrap a block that is
 not checked, this is useful for wrapping calls to external libraries when the
-source is unavailable to the user.
+source is unavailable to the user. Here we bypass the termination check for an
+external function call while keeping the rest of the recursive method verified:
+\begin{minted}{scala}
+        @terminates
+        def sum_f(l: List[Int]): Int =
+          l match
+            case Nil => 0
+            case hd :: tl => uncheckedTermination(external_f(hd))) + sum_f(tl)
+\end{minted}
 
 The \texttt{@assumeDecreases} annotation applied to a method (typically a field
 accessor or a selector-like method), tells the checker that the called method on
 a value outputs a result that is strictly smaller than that value.
 This is useful when it's semantically clear that the value decreases, but the
-simple structural analysis fails.
+simple structural analysis fails. In this example, the annotation asserts
+that \texttt{getLeftOrElseRight} yields a structurally smaller value:
+\newpage
+\begin{minted}{scala}
+        sealed trait Tree:
+          @assumeDecreases
+          def getLeftOrElseRigth: Tree = this match
+              case Node(left: Node, _) => left
+              case Node(Leaf, right) => right
+              case _ => Leaf
+              
+        case class Node(left: Tree, right: Tree) extends Tree
+        case object Leaf extends Tree
+\end{minted}
 
 The \texttt{@assumeWellFounded} annotation applied to a type bypasses the
 well-foundedness check, asserting that the type admits no infinite descending
 chains. It is needed for types that are structurally well-founded but whose
 shape does not match the simple syntactic criterion the checker applies.
-
+This allows us to mark the standard library \texttt{List} as well-founded
+regardless of the implementation details:
+\begin{minted}{scala}
+        @assumeWellFounded
+        sealed abstract class List[+A]
+\end{minted}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Implementation}
@@ -68,6 +105,8 @@ shape does not match the simple syntactic criterion the checker applies.
 
 The checker is implemented as a \texttt{MiniPhase} inside the
 \texttt{dotty.tools.dotc.transform} package.
+A \texttt{MiniPhase} is a compiler phase designed so that several mini phases
+can be merged into a single AST traversal for efficiency \cite{MiniPhase}.
 When a method is annotated with \texttt{@terminates}, is not abstract
 (\texttt{Deferred}), and has not already been verified in a prior traversal, the
 methods body is traversed. Successfully checked methods are accumulated in a
@@ -82,7 +121,7 @@ The core analysis tracks how the sizes of values evolve as execution proceeds.
 A \texttt{valMap} associates local value symbols to a \emph{(source, size)}
 pair, recording where the value came from and whether it is \texttt{Smaller}
 or \texttt{Same} relative to that source. An analogous \texttt{varMap} tracks
-mutable variables (\texttt{var}), updated at every assignment.
+mutable variables, updated at every assignment.
 
 \subsection{Pattern Matching and ADTs}
 Pattern matching on an Algebraic Data Type is the primary mechanism by which
@@ -192,7 +231,7 @@ union of all maps, it is considered \texttt{Unknown} if \texttt{Unknown} in
 any branch, \texttt{Smaller} if \texttt{Smaller} in all branches and
 \texttt{Same} otherwise. Then the original \texttt{varMap} is updated with the
 new information from the branching construct.
-For \texttt{WhileDo}, the body might never execute, therefore, we merely merge
+For \texttt{WhileDo}, the body may never be executed, therefore, we merge
 the original \texttt{varMap} with a \texttt{varMap} computed by traversing the
 body of the loop.
 
@@ -200,6 +239,40 @@ body of the loop.
 %%%%%%%%%%%%%%%%%%%%
 \chapter{Evaluation and Limitations}
 %%%%%%%%%%%%%%%%%%%%
+
+\section{Performance Evaluation}
+To evaluate the compile-time overhead introduced by the checker, benchmarks were
+run on a file containing approximately 30 functions. These benchmarks were
+conducted on a personal computer while no other processes were running to ensure
+the accuracy and consistency of the measurements.
+The compilation was measured across three scenarios: using no flags to
+completely disactivate the phase, using only the \texttt{-Yretain-trees} flag to
+measure the overhead of keeping the AST in memory, and using both
+\texttt{-Yretain-trees} and \texttt{-Ycheck-termination} to fully activate the
+checker.
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lcc}
+        \hline
+        \textbf{Configuration} & \textbf{Average Time (ms/op)} &
+                                                      \textbf{Error Margin} \\
+        \hline
+        Baseline                & 84.246 & $\pm$ 0.423 \\
+        \texttt{-Yretain-trees} & 85.301 & $\pm$ 1.029 \\
+        Checker enabled         & 85.769 & $\pm$ 0.614 \\
+        \hline
+    \end{tabular}
+    \caption{
+      Compile-time overhead of the termination checker (averaged over 20
+      iterations).
+    }
+    \label{tab:bench}
+\end{table}
+The benchmarks show that the checker has little overhead. Retaining the trees
+introduces an overhead of 1.06 ms over the baseline. Fully activating the
+checker adds an additional 0.47 ms. Overall 1.8\% increase in compilation time
+is negligible. This confirms that the goal of being lightweight is achieved.
+
 
 \section{What the Checker Can Verify}
 
@@ -247,16 +320,16 @@ three recursive calls are therefore accepted.
 One limitation we see here, is that we must match on one value at a time and
 matching over tuples is not supported.
 
-When the decreasing argument is not first, \texttt{@decreases} tells the checker
-to use a different ordering:
+When the decreasing argument is not the first, \texttt{@decreases} can be used
+to tell the checker to use a different ordering:
 \begin{minted}[escapeinside=||]{scala}
         @terminates
         def f(logger: List[Nat], n: Nat): (Nat, List[Nat]) @decreases(n) =
           n match
-            case Zero => (Zero, logger :+ Zero)
-            case Succ(pn) => f(logger :+ n, pn)
+            case Zero => (Zero, Zero :: logger)
+            case Succ(pn) => f(n :: logger, pn)
 \end{minted}
-Without \texttt{@decreases(n)}, the checker would compare \texttt{logger :+ n}
+Without \texttt{@decreases(n)}, the checker would compare \texttt{n :: logger}
 to \texttt{logger} first, find the size unknown, and reject the call. With the
 annotation, it checks \texttt{n} first, finds \texttt{pn} is \texttt{Smaller},
 and the call is accepted.
@@ -296,13 +369,12 @@ terminating.
 
 \subsection{Higher-Order Functions} \label{sec:HOF}
 The checker can follow higher-order calls when the closure is available.
+\newpage
 \begin{minted}[escapeinside=||]{scala}
-  sealed trait MyList[+A] {
-    def foldRight[B](z: B)(op: (A, B) => B): B =
-      this match
+  sealed trait MyList[+A]:
+    def foldRight[B](z: B)(op: (A, B) => B): B = this match
         case MyNil => z
         case MyCons(hd, tl) => op(hd, tl.foldRight(z)(op))
-  }
   case object MyNil extends MyList[Nothing]
   case class MyCons[+A](val hd: A, val tl: MyList[A]) extends MyList[A]
 
@@ -427,7 +499,7 @@ terminates in the sense defined above, conditional on all assertions made.
 Consider a method \texttt{f} with parameters $p_1, \ldots, p_k$ that has been
 accepted by the checker. By construction, every call within \texttt{f}'s body
 that is detected as recursive must pass \texttt{areSmaller}, which asserts that
-the argument tuple $(a_1, \ldots, a_k)$ is lexicographically strictly smaller
+the argument tuple $(a_1, \ldots, a_k)$ is lexicographically smaller
 than $(p_1, \ldots, p_k)$ with respect to the structural order of each type.
 
 More precisely, \texttt{isLexicoDecreasing} finds an index $i$ such that:
@@ -574,9 +646,9 @@ The global size-change principle \cite{SizeChange} was considered as an
 alternative to the per-call lexicographic check. It would handle the
 cross-parameter swapping case and some mutual recursion patterns that the
 current checker cannot.
-However, the size-change principle has been shown to be PSPACE-complete. For a
-compiler phase that runs on every build, a PSPACE algorithm over the full call
-graph is not acceptable.
+However, the size-change principle has been shown to be
+\textsf{PSPACE-complete}. For a compiler phase that runs on every build, a
+\textsf{PSPACE} algorithm over the full call graph is not acceptable.
 Furthermore, when the size-change check fails, the failure is a global property
 of the call graph rather than a property of a specific call site. The per-call
 lexicographic check, by contrast, fails at a precise source location with a
@@ -588,9 +660,10 @@ or an appropriate escape hatch.
 Functions that terminate because an integer decreases toward a bound, rather
 than a data structure shrinks, cannot be verified. This covers a significant
 class of imperative algorithms. The most natural extension would be to allows
-the \texttt{@decreases} annotation to accept a well-founded integer expression,
-checked at each loop iteration or recursive call. This would not require an SMT
-solver and could be implemented within the same syntactic framework.
+the \texttt{@decreases} annotation to accept a well-founded integer relation,
+checked at each loop iteration or recursive call. This would not necessarily
+require an SMT solver and could be implemented within the same syntactic
+framework.
 
 When a method is called on a value whose static type is an unsealed trait or
 abstract class, the checker cannot enumerate the possible concrete

@@ -115,6 +115,117 @@
   url={https://arxiv.org/abs/2605.08369}, 
 }
 
+@article{LCFtoHOL,
+  author       = {Lawrence C. Paulson and
+                  Tobias Nipkow and
+                  Makarius Wenzel},
+  title        = {From {LCF} to Isabelle/HOL},
+  journal      = {CoRR},
+  volume       = {abs/1907.02836},
+  year         = {2019},
+  url          = {http://arxiv.org/abs/1907.02836},
+  eprinttype   = {arXiv},
+  eprint       = {1907.02836},
+  timestamp    = {Mon, 08 Jul 2019 14:12:33 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1907-02836.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{Iris,
+    title={Iris from the ground up: A modular foundation for higher-order concurrent separation logic},
+    volume={28},
+    DOI={10.1017/S0956796818000151},
+    journal={Journal of Functional Programming},
+    author={JUNG, RALF and KREBBERS, ROBBERT and JOURDAN, JACQUES-HENRI and BIZJAK, ALEŠ and BIRKEDAL, LARS and DREYER, DEREK},
+    year={2018},
+    pages={e20}
+}
+
+@article{MiniPhase,
+    author = {Petrashko, Dmitry and Lhot\'{a}k, Ond\v{r}ej and Odersky, Martin},
+    title = {Miniphases: compilation using modular and efficient tree transformations},
+    year = {2017},
+    issue_date = {June 2017},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {52},
+    number = {6},
+    issn = {0362-1340},
+    url = {https://doi.org/10.1145/3140587.3062346},
+    doi = {10.1145/3140587.3062346},
+    abstract = {Production compilers commonly perform dozens of transformations on an intermediate representation. Running those transformations in separate passes harms performance. One approach to recover performance is to combine transformations by hand in order to reduce number of passes. Such an approach harms modularity, and thus makes it hard to maintain and evolve a compiler over the long term, and makes reasoning about performance harder. This paper describes a methodology that allows a compiler writer to define multiple transformations separately, but fuse them into a single traversal of the intermediate representation when the compiler runs. This approach has been implemented in a compiler for the Scala language. Our performance evaluation indicates that this approach reduces the running time of tree transformations by 35\% and shows that this is due to improved cache friendliness. At the same time, the approach improves total memory consumption by reducing the object tenuring rate by 50\%. This approach enables compiler writers to write transformations that are both modular and fast at the same time.},
+    journal = {SIGPLAN Not.},
+    month = jun,
+    pages = {201–216},
+    numpages = {16},
+    keywords = {cache locality, compiler performance, tree traversal fusion}
+}
+
+@book{programSemantics,
+    author = {Winskel, Glynn},
+    title = {The formal semantics of programming languages: an introduction},
+    year = {1993},
+    isbn = {0262231697},
+    publisher = {MIT Press},
+    address = {Cambridge, MA, USA},
+}
+
+@software{rocq,
+  author       = {The Rocq Development Team},
+  title        = {The Rocq Prover},
+  month        = sep,
+  year         = 2025,
+  publisher    = {Zenodo},
+  version      = {9.1.0},
+  doi          = {10.5281/zenodo.17473943},
+  url          = {https://doi.org/10.5281/zenodo.17473943},
+}
+
+@inproceedings{lean,
+  title = {The Lean 4 Theorem Prover and Programming Language},
+  author = {de Moura, Leonardo and Ullrich, Sebastian},
+  year = {2021},
+  isbn = {978-3-030-79875-8},
+  publisher = {Springer-Verlag},
+  address = {Berlin, Heidelberg},
+  url = {https://doi.org/10.1007/978-3-030-79876-5_37},
+  doi = {10.1007/978-3-030-79876-5_37},
+  abstract = {Lean 4 is a reimplementation of the Lean interactive theorem prover (ITP) in Lean itself. It addresses many shortcomings of the previous versions and contains many new features. Lean 4 is fully extensible: users can modify and extend the parser, elaborator, tactics, decision procedures, pretty printer, and code generator. The new system has a hygienic macro system custom-built for ITPs. It contains a new typeclass resolution procedure based on tabled resolution, addressing significant performance problems reported by the growing user base. Lean 4 is also an efficient functional programming language based on a novel programming paradigm called functional but in-place. Efficient code generation is crucial for Lean users because many write custom proof automation procedures in Lean itself.},
+  booktitle = {Automated Deduction – CADE 28: 28th International Conference on Automated Deduction, Virtual Event, July 12–15, 2021, Proceedings},
+  pages = {625–635},
+  numpages = {11}
+}
+
+@phdthesis{agda,
+  author  = {Ulf Norell},
+  title	  = {Towards a practical programming language based on dependent type
+	     theory},
+  school  = {Department of Computer Science and Engineering, Chalmers University of Technology},
+  year	  = 2007,
+  month	  = {September},
+  address = {SE-412 96 G\"{o}teborg, Sweden}
+}
+
+@article{AProVEHaskell,
+author = {Giesl, J\"{u}rgen and Raffelsieper, Matthias and Schneider-Kamp, Peter and Swiderski, Stephan and Thiemann, Ren\'{e}},
+title = {Automated termination proofs for haskell by term rewriting},
+year = {2011},
+issue_date = {January 2011},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {33},
+number = {2},
+issn = {0164-0925},
+url = {https://doi.org/10.1145/1890028.1890030},
+doi = {10.1145/1890028.1890030},
+abstract = {There are many powerful techniques for automated termination analysis of term rewriting. However, up to now they have hardly been used for real programming languages. We present a new approach which permits the application of existing techniques from term rewriting to prove termination of most functions defined in Haskell programs. In particular, we show how termination techniques for ordinary rewriting can be used to handle those features of Haskell which are missing in term rewriting (e.g., lazy evaluation, polymorphic types, and higher-order functions). We implemented our results in the termination prover AProVE and successfully evaluated them on existing Haskell libraries.},
+journal = {ACM Trans. Program. Lang. Syst.},
+month = feb,
+articleno = {7},
+numpages = {39},
+keywords = {termination analysis, term rewriting, dependency pairs, Haskell, Functional programming}
+}
+
 @inproceedings{dinesh20oakland,
   author = {Sushant Dinesh and Nathan Burow and Dongyan Xu and Mathias Payer},
   title = {{RetroWrite: Statically Instrumenting COTS Binaries for Fuzzing and Sanitization}},

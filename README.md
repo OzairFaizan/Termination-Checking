@@ -149,4 +149,10 @@
 - Add documentation in the code.
 
 # Week 15 2026-06-05
+- Ran benchmarks, they confirm that the checker has no overhead.
+- Finalize report.
+- For `trait Function<N>` no need to have the additional check!
+    - If we have it: all good!
+    - If we don't have it: we will emit a warning because of empty tree!
+- Update PR.
 
